@@ -10,6 +10,7 @@ export interface ActionRepository {
   updateInterventionResult(id: string, result: ActionExecutionResult): Promise<void>;
   recordOutcome(input: { merchantId: string; recoveryCaseId: string; interventionId: string; type: string; amountMinor: bigint; currency: string; providerReference?: string; metadata?: Record<string, unknown> }): Promise<void>;
   updateCase(merchantId: string, caseId: string, patch: Partial<RecoveryCaseSnapshot>): Promise<void>;
+  createEscalation?(input: { merchantId: string; recoveryCaseId: string; reason: string; priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" }): Promise<void>;
   audit(input: { merchantId: string; recoveryCaseId: string; traceId: string; eventType: string; reason: string; metadata?: Record<string, unknown> }): Promise<void>;
 }
 export interface ExecuteActionInput { merchantId: string; caseId: string; action: DomainAction; policy: PolicyConfig; repository: ActionRepository; paymentProvider: PaymentProvider; traceId: string; idempotencyKey: string; now?: Date; }
