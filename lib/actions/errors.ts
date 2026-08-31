@@ -1,0 +1,1 @@
+export class ActionError extends Error { constructor(public readonly code: "ACTION_NOT_ALLOWED" | "CASE_NOT_FOUND" | "ACTION_FAILED" | "IDEMPOTENCY_CONFLICT", message: string, public readonly status = 409) { super(message); this.name = "ActionError"; } }

@@ -1,0 +1,285 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CustomerSegment { STANDARD GROWTH VIP ENTERPRISE }
+enum TransactionStatus { FAILED PENDING SUCCEEDED REFUNDED }
+enum PaymentMethod { CARD UPI NETBANKING WALLET EMI }
+enum EventType { PAYMENT_FAILED CHECKOUT_ABANDONED SUBSCRIPTION_PAYMENT_FAILED INVOICE_OVERDUE }
+enum RecoveryCaseStatus { OPEN ELIGIBLE PROCESSING AWAITING_OUTCOME RECOVERED FAILED STOPPED ESCALATED RESOLVED }
+enum RiskLevel { LOW MEDIUM HIGH CRITICAL }
+enum ActionType { RETRY_PAYMENT CREATE_PAYMENT_LINK SEND_REMINDER SEND_RECOVERY_MESSAGE OFFER_ALTERNATE_METHOD SCHEDULE_RETRY MARK_RECOVERY_CAMPAIGN ESCALATE STOP }
+enum InterventionStatus { PROPOSED APPROVED EXECUTING AWAITING_OUTCOME SUCCEEDED FAILED CANCELLED }
+enum OutcomeType { PAYMENT_RECOVERED PAYMENT_FAILED PAYMENT_LINK_OPENED CUSTOMER_ENGAGED PROMISE_TO_PAY CUSTOMER_OPTED_OUT }
+enum PolicyDecision { ALLOW WAIT STOP ESCALATE REJECT }
+enum ActorType { AI SYSTEM HUMAN PROVIDER }
+enum AuditEventType { EVENT_INGESTED CASE_CREATED CONTEXT_BUILT SCORE_CALCULATED AGENT_DECISION_GENERATED AGENT_VALIDATION_FAILED POLICY_EVALUATED INTERVENTION_CREATED INTERVENTION_EXECUTED OUTCOME_RECEIVED REVENUE_ATTRIBUTED CASE_STOPPED CASE_ESCALATED CASE_RESOLVED }
+enum EscalationPriority { LOW MEDIUM HIGH CRITICAL }
+enum EscalationStatus { OPEN ASSIGNED RESOLVED STOPPED }
+en
+data Merchant {
+  id String @id @default(cuid())
+  name String
+  defaultCurrency String @default("INR")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customers Customer[]
+  transactions Transaction[]
+  subscriptions Subscription[]
+  invoices Invoice[]
+  revenueEvents RevenueEvent[]
+  recoveryCases RecoveryCase[]
+  interventions Intervention[]
+  outcomes OutcomeEvent[]
+  policies Policy[]
+  escalations Escalation[]
+  auditLogs AuditLog[]
+  agentRuns AgentRun[]
+}
+
+data Customer {
+  id String @id @default(cuid())
+  merchantId String
+  name String
+  email String
+  phone String?
+  segment CustomerSegment @default(STANDARD)
+  optedOut Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  subscriptions Subscription[]
+  invoices Invoice[]
+  revenueEvents RevenueEvent[]
+  recoveryCases RecoveryCase[]
+  @@unique([merchantId, email])
+  @@index([merchantId, segment])
+}
+
+data Transaction {
+  id String @id @default(cuid())
+  merchantId String
+  customerId String
+  amountMinor BigInt
+  currency String
+  status TransactionStatus
+  paymentMethod PaymentMethod
+  failureReason String?
+  providerReference String?
+  createdAt DateTime @default(now())
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@index([merchantId, status])
+  @@index([customerId, createdAt])
+}
+
+data Subscription {
+  id String @id @default(cuid())
+  merchantId String
+  customerId String
+  amountMinor BigInt
+  currency String
+  status String
+  nextBillingAt DateTime
+  failureCount Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@index([merchantId, status])
+}
+
+data Invoice {
+  id String @id @default(cuid())
+  merchantId String
+  customerId String
+  amountMinor BigInt
+  currency String
+  dueDate DateTime
+  status String
+  paidAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@index([merchantId, status, dueDate])
+}
+
+data RevenueEvent {
+  id String @id @default(cuid())
+  merchantId String
+  customerId String
+  type EventType
+  sourceId String
+  idempotencyKey String
+  payload Json
+  occurredAt DateTime
+  processedAt DateTime?
+  createdAt DateTime @default(now())
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@unique([merchantId, idempotencyKey])
+  @@index([merchantId, type, occurredAt])
+}
+
+data RecoveryCase {
+  id String @id @default(cuid())
+  reference String @unique
+  merchantId String
+  customerId String
+  sourceType EventType
+  sourceId String
+  amountAtRiskMinor BigInt
+  currency String
+  status RecoveryCaseStatus @default(OPEN)
+  riskLevel RiskLevel @default(MEDIUM)
+  diagnosisCategory String?
+  diagnosisConfidence Decimal? @db.Decimal(5, 4)
+  recoveryScore Decimal? @db.Decimal(5, 4)
+  recommendedAction ActionType?
+  attemptCount Int @default(0)
+  contactCount Int @default(0)
+  nextActionAt DateTime?
+  lastContactAt DateTime?
+  recoveredAmountMinor BigInt @default(0)
+  escalatedAt DateTime?
+  stoppedAt DateTime?
+  stopReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  interventions Intervention[]
+  outcomes OutcomeEvent[]
+  auditLogs AuditLog[]
+  escalations Escalation[]
+  agentRuns AgentRun[]
+  @@unique([merchantId, sourceType, sourceId])
+  @@index([merchantId, status])
+  @@index([merchantId, nextActionAt])
+  @@index([merchantId, riskLevel])
+}
+
+data Intervention {
+  id String @id @default(cuid())
+  merchantId String
+  recoveryCaseId String
+  actionType ActionType
+  status InterventionStatus @default(PROPOSED)
+  reason String
+  expectedRecoveryValueMinor BigInt
+  expectedProbability Decimal? @db.Decimal(5, 4)
+  actionSuccessProbability Decimal? @db.Decimal(5, 4)
+  policyDecision PolicyDecision?
+  policyRule String?
+  executedAt DateTime?
+  outcomeAt DateTime?
+  recoveredAmountMinor BigInt @default(0)
+  providerReference String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  recoveryCase RecoveryCase @relation(fields: [recoveryCaseId], references: [id], onDelete: Cascade)
+  outcomes OutcomeEvent[]
+  auditLogs AuditLog[]
+  @@index([merchantId, status])
+  @@index([recoveryCaseId, createdAt])
+}
+
+data OutcomeEvent {
+  id String @id @default(cuid())
+  merchantId String
+  recoveryCaseId String
+  interventionId String?
+  type OutcomeType
+  amountMinor BigInt @default(0)
+  currency String
+  providerReference String?
+  occurredAt DateTime
+  metadata Json?
+  createdAt DateTime @default(now())
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  recoveryCase RecoveryCase @relation(fields: [recoveryCaseId], references: [id], onDelete: Cascade)
+  intervention Intervention? @relation(fields: [interventionId], references: [id], onDelete: SetNull)
+  @@index([merchantId, type, occurredAt])
+  @@index([recoveryCaseId, type])
+}
+
+data Policy {
+  id String @id @default(cuid())
+  merchantId String
+  name String
+  eventType EventType
+  version Int @default(1)
+  rulesJson Json
+  enabled Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  @@unique([merchantId, name, version])
+  @@index([merchantId, eventType, enabled])
+}
+
+data Escalation {
+  id String @id @default(cuid())
+  merchantId String
+  recoveryCaseId String
+  priority EscalationPriority
+  reason String
+  status EscalationStatus @default(OPEN)
+  assignedTo String?
+  resolvedAt DateTime?
+  resolutionNotes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  recoveryCase RecoveryCase @relation(fields: [recoveryCaseId], references: [id], onDelete: Cascade)
+  @@index([merchantId, status, priority])
+}
+
+data AuditLog {
+  id String @id @default(cuid())
+  merchantId String
+  recoveryCaseId String?
+  interventionId String?
+  traceId String
+  actorType ActorType
+  eventType AuditEventType
+  decision String?
+  reason String?
+  policyResult PolicyDecision?
+  metadata Json?
+  createdAt DateTime @default(now())
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  recoveryCase RecoveryCase? @relation(fields: [recoveryCaseId], references: [id], onDelete: SetNull)
+  intervention Intervention? @relation(fields: [interventionId], references: [id], onDelete: SetNull)
+  @@index([merchantId, createdAt])
+  @@index([recoveryCaseId, createdAt])
+  @@index([traceId])
+}
+
+data AgentRun {
+  id String @id @default(cuid())
+  traceId String
+  merchantId String
+  recoveryCaseId String
+  provider String
+  model String?
+  inputContextHash String?
+  outputJson Json?
+  validationStatus String
+  latencyMs Int?
+  error String?
+  createdAt DateTime @default(now())
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  recoveryCase RecoveryCase @relation(fields: [recoveryCaseId], references: [id], onDelete: Cascade)
+  @@index([merchantId, createdAt])
+  @@index([recoveryCaseId, createdAt])
+}
