@@ -1,0 +1,1 @@
+export function ComingSoon({ title }: { title: string }) { return <div className="p-10"><p className="text-xs uppercase tracking-[0.2em] text-amber">Operations</p><h1 className="mt-2 text-3xl font-semibold">{title}</h1><div className="mt-8 rounded-lg border border-border bg-surface p-8 text-sm text-muted">This operational view is not enabled in the current MVP.</div></div>; }
