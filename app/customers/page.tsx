@@ -1,2 +1,2 @@
-import { ComingSoon } from "@/components/layout/coming-soon";
-export default function Page() { return <ComingSoon title="Customers" />; }
+import { OperationsPage } from "@/components/operations/operations-page";
+export default function Page() { return <OperationsPage resource="customers" />; }
