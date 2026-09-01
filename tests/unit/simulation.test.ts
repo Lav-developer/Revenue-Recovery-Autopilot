@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { DEMO_RUN_ID, DEMO_SCENARIOS } from "@/lib/evaluation/scenarios";
+describe("deterministic demo scenarios", () => { it("defines the four bounded recovery scenarios", () => { expect(DEMO_SCENARIOS.map((scenario) => scenario.name)).toEqual(["SUCCESSFUL_RETRY", "PAYMENT_LINK_RECOVERY", "HIGH_VALUE_ESCALATION", "MAXIMUM_ATTEMPTS"]); expect(DEMO_RUN_ID).toBe("recovery-autopilot-demo-v1"); }); it("uses non-random integer minor-unit amounts", () => { for (const scenario of DEMO_SCENARIOS) expect(typeof scenario.amountMinor).toBe("bigint"); }); });

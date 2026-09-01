@@ -1,0 +1,4 @@
+export type DemoScenarioName = "SUCCESSFUL_RETRY" | "PAYMENT_LINK_RECOVERY" | "HIGH_VALUE_ESCALATION" | "MAXIMUM_ATTEMPTS";
+export interface ScenarioResult { name: DemoScenarioName; caseId: string; recommendation?: string; policyOutcome: string; executedAction?: string; status: string; recoveredAmountMinor: bigint; error?: string; }
+export interface SimulationSummary { runId: string; status: "COMPLETED" | "ALREADY_COMPLETED" | "FAILED"; casesProcessed: number; casesEligible: number; aiRecommendations: number; allowedActions: number; blockedActions: number; escalations: number; stoppedCases: number; interventions: number; successfulRecoveries: number; recoveredAmountMinor: bigint; recoveryRate: { numeratorMinor: bigint; denominatorMinor: bigint; percentage: number }; executionErrors: number; }
+export interface SimulationResult { runId: string; status: SimulationSummary["status"]; summary: SimulationSummary; scenarios: ScenarioResult[]; metrics: unknown; }

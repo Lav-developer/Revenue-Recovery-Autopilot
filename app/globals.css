@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #0B0A08; color: #F3EEE5; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }

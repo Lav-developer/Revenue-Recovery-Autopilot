@@ -1,0 +1,10 @@
+import { z } from "zod";
+import { ApiError } from "./errors";
+
+export const eventRequestSchema = z.object({ merchantId: z.string().min(1).optional(), customerId: z.string().min(1), type: z.enum(["PAYMENT_FAILED", "CHECKOUT_ABANDONED", "SUBSCRIPTION_PAYMENT_FAILED", "INVOICE_OVERDUE"]), sourceId: z.string().min(1), amountMinor: z.union([z.bigint(), z.number().int().nonnegative(), z.string().regex(/^\d+$/)]), currency: z.string().length(3), occurredAt: z.coerce.date(), idempotencyKey: z.string().min(1), payload: z.record(z.string(), z.unknown()).optional() });
+export const batchEventSchema = z.object({ events: z.array(eventRequestSchema).min(1).max(100) });
+export const caseListQuerySchema = z.object({ status: z.string().optional(), riskLevel: z.string().optional(), sourceType: z.string().optional(), customerId: z.string().optional(), minAmountMinor: z.string().regex(/^\d+$/).optional(), maxAmountMinor: z.string().regex(/^\d+$/).optional(), page: z.coerce.number().int().min(1).default(1), pageSize: z.coerce.number().int().min(1).max(100).default(25), sortBy: z.enum(["createdAt", "amountAtRiskMinor", "updatedAt"]).default("createdAt"), sortOrder: z.enum(["asc", "desc"]).default("desc") });
+export const processRequestSchema = z.object({ action: z.enum(["RETRY_PAYMENT", "CREATE_PAYMENT_LINK", "SEND_REMINDER", "SEND_RECOVERY_MESSAGE", "OFFER_ALTERNATE_METHOD", "SCHEDULE_RETRY", "MARK_RECOVERY_CAMPAIGN", "ESCALATE", "STOP"]).optional() });
+export const escalationRequestSchema = z.object({ reason: z.string().trim().min(1).max(500).optional(), priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).optional() });
+export function merchantIdFromRequest(request: Request): string { const merchantId = request.headers.get("x-merchant-id"); if (!merchantId) throw new ApiError(400, "MERCHANT_REQUIRED", "A merchant scope is required."); return merchantId; }
+export function parseEnum<T extends string>(value: string | undefined, valid: readonly T[], field: string): T | undefined { if (!value) return undefined; if (!valid.includes(value as T)) throw new ApiError(400, "INVALID_PAYLOAD", `Invalid ${field}.`); return value as T; }
